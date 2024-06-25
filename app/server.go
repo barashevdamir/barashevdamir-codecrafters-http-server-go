@@ -40,7 +40,6 @@ func handleConnection(conn net.Conn, directory string) {
 
 	// Чтение заголовков
 	headers := make(map[string]string)
-	var body []byte
 	for {
 		line, err := reader.ReadString('\n')
 		fmt.Println(line)
@@ -72,6 +71,8 @@ func handleConnection(conn net.Conn, directory string) {
 			fmt.Println("Error reading body:", err)
 			return
 		}
+		data = body
+		fmt.Println("Body:", string(body))
 	}
 
 	// Обработка запроса
@@ -110,7 +111,7 @@ func handleConnection(conn net.Conn, directory string) {
 		if parts[1] == "files" {
 			filename := parts[2]
 			fullPath := filepath.Join(directory, filename)
-			err := os.WriteFile(fullPath, body, 0644)
+			err := os.WriteFile(fullPath, data, 0644)
 			if err != nil {
 				fmt.Println("Error opening file:", err)
 				conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
