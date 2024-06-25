@@ -27,13 +27,21 @@ func main() {
 	}
 	requestLine = strings.TrimSpace(requestLine)
 	parts := strings.Split(requestLine, " ")
+	parts = strings.Split(parts[1], "/")
 	target := parts[1]
-	if target == "/" {
+	if target == "echo" {
+		echo := parts[2]
+		EchoLen := len(echo)
+		conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
+	}
+
+	if target == "" {
 		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 	} else {
 		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 	}
 
+	fmt.Println("Received request: ", requestLine)
 	if err != nil {
 		fmt.Println("Error accepting connection: ", err.Error())
 		os.Exit(1)
