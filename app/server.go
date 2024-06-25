@@ -42,7 +42,6 @@ func handleConnection(conn net.Conn, directory string) {
 	headers := make(map[string]string)
 	for {
 		line, err := reader.ReadString('\n')
-		fmt.Println(line)
 		if err != nil {
 			fmt.Println("Error reading header line:", err)
 			return
@@ -75,7 +74,6 @@ func handleConnection(conn net.Conn, directory string) {
 		fmt.Println("Body:", string(body))
 	}
 
-	// Обработка запроса
 	if method == "GET" {
 		parts := strings.Split(path, "/")
 		fmt.Println(parts)
@@ -98,7 +96,12 @@ func handleConnection(conn net.Conn, directory string) {
 		case "echo":
 			echo := parts[2]
 			EchoLen := len(echo)
-			conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
+			if headers["Accept-Encoding"] == "gzip" {
+				conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
+				conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
+			} else {
+				conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
+			}
 		case "":
 			conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 		default:
