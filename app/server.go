@@ -71,12 +71,10 @@ func handleConnection(conn net.Conn, directory string) {
 			return
 		}
 		data = body
-		fmt.Println("Body:", string(body))
 	}
 
 	if method == "GET" {
 		parts := strings.Split(path, "/")
-		fmt.Println(parts)
 		switch parts[1] {
 		case "files":
 			filename := parts[2]
@@ -96,7 +94,16 @@ func handleConnection(conn net.Conn, directory string) {
 		case "echo":
 			echo := parts[2]
 			EchoLen := len(echo)
-			if headers["Accept-Encoding"] == "gzip" {
+			echoHeaders := strings.Split(headers["Accept-Encoding"], ",")
+			found := false
+			for _, encoding := range echoHeaders {
+				if strings.TrimSpace(encoding) == "gzip" {
+					found = true
+					break
+				}
+			}
+			if found {
+				fmt.Println("GZIP encoding")
 				conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
 				conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
 			} else {
