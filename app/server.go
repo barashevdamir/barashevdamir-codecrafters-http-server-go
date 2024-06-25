@@ -2,6 +2,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"flag"
 	"fmt"
 	"io"
@@ -14,6 +16,7 @@ import (
 
 var directory string
 var data []byte
+var b bytes.Buffer
 
 func handleConnection(conn net.Conn, directory string) {
 	defer conn.Close()
@@ -103,9 +106,21 @@ func handleConnection(conn net.Conn, directory string) {
 				}
 			}
 			if found {
-				fmt.Println("GZIP encoding")
-				conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
-				conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
+				zw := gzip.NewWriter(&b)
+				_, err := zw.Write([]byte(echo))
+				if err != nil {
+					fmt.Println("Error while compressing:", err)
+					conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n\r\n"))
+					return
+				}
+				err = zw.Close()
+				if err != nil {
+					fmt.Println("Error while closing gzip writer:", err)
+					conn.Write([]byte("HTTP/1.1 500 Internal Server Error\r\n\r\n"))
+					return
+				}
+				conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Encoding: gzip\r\nContent-Length: " + fmt.Sprintf("%d", b.Len()) + "\r\n\r\n"))
+				conn.Write(b.Bytes())
 			} else {
 				conn.Write([]byte("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: " + fmt.Sprintf("%d", EchoLen) + "\r\n\r\n" + echo))
 			}
