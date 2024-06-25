@@ -4,13 +4,16 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 var directory string
+var data []byte
 
 func handleConnection(conn net.Conn, directory string) {
 	defer conn.Close()
@@ -37,8 +40,10 @@ func handleConnection(conn net.Conn, directory string) {
 
 	// Чтение заголовков
 	headers := make(map[string]string)
+	var body []byte
 	for {
 		line, err := reader.ReadString('\n')
+		fmt.Println(line)
 		if err != nil {
 			fmt.Println("Error reading header line:", err)
 			return
@@ -52,6 +57,22 @@ func handleConnection(conn net.Conn, directory string) {
 			headers[headerParts[0]] = headerParts[1]
 		}
 	}
+	// Чтение тела запроса, если присутствует Content-Length
+	if contentLength, ok := headers["Content-Length"]; ok {
+		length, err := strconv.Atoi(contentLength)
+		if err != nil {
+			fmt.Println("Invalid Content-Length:", err)
+			conn.Write([]byte("HTTP/1.1 400 Bad Request\r\n\r\n"))
+			return
+		}
+
+		body := make([]byte, length)
+		_, err = io.ReadFull(reader, body)
+		if err != nil {
+			fmt.Println("Error reading body:", err)
+			return
+		}
+	}
 
 	// Обработка запроса
 	if method == "GET" {
@@ -61,7 +82,7 @@ func handleConnection(conn net.Conn, directory string) {
 		case "files":
 			filename := parts[2]
 			fullPath := filepath.Join(directory, filename)
-			contents, err := ioutil.ReadFile(fullPath)
+			contents, err := os.ReadFile(fullPath)
 			if err != nil {
 				fmt.Println("Error opening file:", err)
 				conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
@@ -83,8 +104,23 @@ func handleConnection(conn net.Conn, directory string) {
 			conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 		}
 
-	} else {
-		conn.Write([]byte("HTTP/1.1 405 Method Not Allowed\r\n\r\n"))
+	} else if method == "POST" {
+		parts := strings.Split(path, "/")
+		fmt.Println(parts)
+		if parts[1] == "files" {
+			filename := parts[2]
+			fullPath := filepath.Join(directory, filename)
+			err := os.WriteFile(fullPath, body, 0644)
+			if err != nil {
+				fmt.Println("Error opening file:", err)
+				conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+				return
+			}
+			conn.Write([]byte("HTTP/1.1 201 Created\r\n\r\n"))
+		} else {
+			conn.Write([]byte("HTTP/1.1 405 Method Not Allowed\r\n\r\n"))
+		}
+
 	}
 }
 
